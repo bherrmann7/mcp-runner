@@ -271,14 +271,11 @@ function getConnectedDevice() {
 async function setAlarm(deviceId, hour, minute, message) {
     const adbPath = `${process.env.HOME}/Library/Android/sdk/platform-tools/adb`;
 
+    const amCommand = `am start -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOUR ${hour} --ei android.intent.extra.alarm.MINUTES ${minute} --es android.intent.extra.alarm.MESSAGE "${message}" --ez android.intent.extra.alarm.VIBRATE true`;
+
     execFileSync(adbPath, [
         '-s', deviceId, 'shell',
-        'am', 'start',
-        '-a', 'android.intent.action.SET_ALARM',
-        '--ei', 'android.intent.extra.alarm.HOUR', String(hour),
-        '--ei', 'android.intent.extra.alarm.MINUTES', String(minute),
-        '--es', 'android.intent.extra.alarm.MESSAGE', message,
-        '--ez', 'android.intent.extra.alarm.VIBRATE', 'true'
+        amCommand
     ], { encoding: 'utf8' });
 
     await new Promise(resolve => setTimeout(resolve, 2000));
