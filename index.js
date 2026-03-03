@@ -1,5 +1,9 @@
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
+import {createRequire} from 'module';
+
+const require = createRequire(import.meta.url);
+const {version} = require('./package.json');
 
 /**
  * MCP Client Manager - handles connections to multiple MCP servers
@@ -26,13 +30,13 @@ export class McpClientManager {
         const transport = new StdioClientTransport({
             command: config.command,
             args: config.args || [],
-            env: config.env || {},
+            env: { ...process.env, ...(config.env || {}) },
             stderr: 'pipe'
         });
 
         const client = new Client({
             name: "mcp-runner",
-            version: "1.0.0"
+            version
         }, {
             capabilities: {
                 tools: {}
@@ -69,6 +73,22 @@ export class McpClientManager {
             name: toolName,
             arguments: args
         });
+    }
+
+    /**
+     * Call a tool and parse the first content text as JSON.
+     */
+    async callToolJson(serverName, toolName, args = {}) {
+        const result = await this.callTool(serverName, toolName, args);
+        const text = result?.content?.[0]?.text;
+        if (text === undefined) {
+            throw new Error(`No text content in response from ${serverName}/${toolName}`);
+        }
+        try {
+            return JSON.parse(text);
+        } catch {
+            throw new Error(`Invalid JSON from ${serverName}/${toolName}: ${text.slice(0, 200)}`);
+        }
     }
 
     /**

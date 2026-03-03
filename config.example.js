@@ -1,4 +1,6 @@
-// Copy this file to config.js and customize for your environment
+// Copy this file to config.js and customize for your environment.
+// WARNING: config.js may contain secrets (API keys, tokens, paths).
+// It is git-ignored by default — do NOT commit it.
 export default {
   servers: {
     shell: {

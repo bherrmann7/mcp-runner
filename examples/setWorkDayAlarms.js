@@ -1,6 +1,9 @@
 import {WorkflowRunner} from '../index.js';
 import {execFileSync} from 'child_process';
+import {fileURLToPath} from 'url';
 import CONFIG from '../config.js';
+
+const ADB_PATH = `${process.env.HOME}/Library/Android/sdk/platform-tools/adb`;
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -225,6 +228,14 @@ async function showTomorrowEvents(mcpManager) {
                 }
             }
 
+            return {
+                success: true,
+                eventsCount: allEvents.length,
+                date: targetDate.toLocaleDateString(),
+                events: allEvents,
+                calendarsChecked: accounts.length
+            };
+
         } else {
             console.log("\n🎉 No events scheduled");
             return {
@@ -245,8 +256,7 @@ async function showTomorrowEvents(mcpManager) {
 
 function getConnectedDevice() {
     try {
-        const adbPath = `${process.env.HOME}/Library/Android/sdk/platform-tools/adb`;
-        const devicesOutput = execFileSync(adbPath, ['devices'], { encoding: 'utf8' });
+        const devicesOutput = execFileSync(ADB_PATH, ['devices'], { encoding: 'utf8' });
 
         // Parse the output to find connected devices
         const lines = devicesOutput.split('\n');
@@ -269,15 +279,17 @@ function getConnectedDevice() {
 }
 
 async function setAlarm(deviceId, hour, minute, message) {
-    const adbPath = `${process.env.HOME}/Library/Android/sdk/platform-tools/adb`;
+    // Strip shell metacharacters to prevent command injection via event titles
+    const safeMessage = message.replace(/["`$\\;|&<>(){}[\]!#~*?]/g, '');
 
-    const amCommand = `am start -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOUR ${hour} --ei android.intent.extra.alarm.MINUTES ${minute} --es android.intent.extra.alarm.MESSAGE "${message}" --ez android.intent.extra.alarm.VIBRATE true`;
+    const amCommand = `am start -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOUR ${hour} --ei android.intent.extra.alarm.MINUTES ${minute} --es android.intent.extra.alarm.MESSAGE "${safeMessage}" --ez android.intent.extra.alarm.VIBRATE true`;
 
-    execFileSync(adbPath, [
+    execFileSync(ADB_PATH, [
         '-s', deviceId, 'shell',
         amCommand
     ], { encoding: 'utf8' });
 
+    // Wait for the Android alarm UI to settle before sending the next intent
     await new Promise(resolve => setTimeout(resolve, 2000));
 }
 
@@ -293,6 +305,6 @@ async function main() {
     process.exit(0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     main();
 }

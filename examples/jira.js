@@ -3,20 +3,18 @@ import CONFIG from '../config.js';
 
 async function getMySprintItems(mcpManager) {
     // Get the cloudId first
-    const resourcesResult = await mcpManager.callTool(
+    const resources = await mcpManager.callToolJson(
         'atlassian', 'getAccessibleAtlassianResources', {}
     );
-    const resources = JSON.parse(resourcesResult.content[0].text);
     const cloudId = resources[0].id;
 
     // Look up account ID by name
-    const userLookup = await mcpManager.callTool(
+    const userResult = await mcpManager.callToolJson(
         'atlassian', 'lookupJiraAccountId', {
             cloudId: cloudId,
             searchString: CONFIG.jira.assigneeName
         }
     );
-    const userResult = JSON.parse(userLookup.content[0].text);
     const userList = userResult.users?.users || [];
     if (userList.length === 0) {
         throw new Error(`Could not find Jira user: ${CONFIG.jira.assigneeName}`);
@@ -91,10 +89,12 @@ async function getMySprintItems(mcpManager) {
             const printRow = (issue) => {
                 const status = issue.fields?.status?.name || 'Unknown';
                 const isQaFail = status === 'QA Fail';
+                // +8 accounts for ANSI bold escape codes (\x1b[1m and \x1b[0m) which are 8 bytes but zero display width
                 const statusDisplay = isQaFail ? bold('QA Fail').padEnd(statusWidth + 8) : status.padEnd(statusWidth);
                 const priorityRaw = issue.fields?.priority?.name || 'None';
                 let priority = priorityRaw.replace(/ - [A-Z]$/, '');
                 const isHigh = priority === 'High' && status !== 'Done';
+                // +8 accounts for ANSI bold escape codes (\x1b[1m and \x1b[0m) which are 8 bytes but zero display width
                 const priorityDisplay = isHigh ? bold('High').padEnd(prioWidth + 8) : priority.padEnd(prioWidth);
                 const storyPoints = issue.fields?.[CONFIG.jira.storyPointsField] ?? '-';
                 const url = `${CONFIG.jira.baseUrl}/browse/${issue.key}`;
@@ -140,5 +140,14 @@ async function getMySprintItems(mcpManager) {
     }
 }
 
-const runner = new WorkflowRunner(CONFIG.servers);
-await runner.run(getMySprintItems);
+async function main() {
+    const runner = new WorkflowRunner(CONFIG.servers);
+    try {
+        await runner.run(getMySprintItems);
+    } catch (error) {
+        console.error("Script failed:", error);
+        process.exit(1);
+    }
+}
+
+main();

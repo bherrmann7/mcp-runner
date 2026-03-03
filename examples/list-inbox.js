@@ -3,13 +3,11 @@ import CONFIG from '../config.js';
 
 const workflow = async (mcpManager) => {
     // Search for recent emails in inbox
-    const result = await mcpManager.callTool('gmail', 'search_emails', {
+    const data = await mcpManager.callToolJson('gmail', 'search_emails', {
         query: 'in:inbox',
         maxResults: 20
     });
 
-    // Parse and display subjects
-    const data = JSON.parse(result.content[0].text);
     const emails = data.emails || data;
 
     console.log('\n📬 Inbox Subjects:\n');
@@ -23,4 +21,14 @@ const workflow = async (mcpManager) => {
     console.log(`\nTotal: ${emails.length} emails`);
 };
 
-new WorkflowRunner(CONFIG.servers).run(workflow);
+async function main() {
+    const runner = new WorkflowRunner(CONFIG.servers);
+    try {
+        await runner.run(workflow);
+    } catch (error) {
+        console.error("Script failed:", error);
+        process.exit(1);
+    }
+}
+
+main();
