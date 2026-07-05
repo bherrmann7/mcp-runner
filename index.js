@@ -1,5 +1,6 @@
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
+import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {createRequire} from 'module';
 
 const require = createRequire(import.meta.url);
@@ -27,12 +28,16 @@ export class McpClientManager {
             throw new Error(`Unknown server: ${serverName}. Check your config.js servers section.`);
         }
 
-        const transport = new StdioClientTransport({
-            command: config.command,
-            args: config.args || [],
-            env: { ...process.env, ...(config.env || {}) },
-            stderr: 'pipe'
-        });
+        const transport = config.url
+            ? new StreamableHTTPClientTransport(new URL(config.url), {
+                requestInit: config.headers ? { headers: config.headers } : undefined
+            })
+            : new StdioClientTransport({
+                command: config.command,
+                args: config.args || [],
+                env: { ...process.env, ...(config.env || {}) },
+                stderr: 'pipe'
+            });
 
         const client = new Client({
             name: "mcp-runner",
@@ -43,14 +48,20 @@ export class McpClientManager {
             }
         });
 
+        const stderrChunks = [];
         try {
-            transport.stderr?.on('data', (data) => {
-                console.error(`[${serverName} stderr] ${data.toString().trim()}`);
-            });
+            if (transport.stderr) {
+                transport.stderr.on('data', (data) => {
+                    stderrChunks.push(data.toString());
+                });
+            }
             await client.connect(transport);
             this.clients.set(serverName, client);
             return client;
         } catch (error) {
+            if (stderrChunks.length > 0) {
+                console.error(`[${serverName} stderr]\n${stderrChunks.join('').trim()}`);
+            }
             console.error(`Failed to connect to ${serverName}:`, error);
             throw error;
         }
@@ -87,6 +98,19 @@ export class McpClientManager {
         try {
             return JSON.parse(text);
         } catch {
+            // Some servers prepend non-JSON text (e.g. deprecation warnings); try to extract JSON
+            // Try each [ or { candidate until one parses successfully
+            let searchFrom = 0;
+            while (searchFrom < text.length) {
+                const idx = text.slice(searchFrom).search(/[\[{]/);
+                if (idx < 0) break;
+                const pos = searchFrom + idx;
+                try {
+                    return JSON.parse(text.slice(pos));
+                } catch {
+                    searchFrom = pos + 1;
+                }
+            }
             throw new Error(`Invalid JSON from ${serverName}/${toolName}: ${text.slice(0, 200)}`);
         }
     }

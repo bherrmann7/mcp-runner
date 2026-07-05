@@ -31,14 +31,14 @@ export default {
       args: ['@gongrzhe/server-gmail-autoauth-mcp']
     },
     atlassian: {
-      command: '/path/to/start-atlassian',
-      args: []
+      url: 'https://mcp.atlassian.com/v1/mcp'
     }
   },
   jira: {
     assigneeName: 'Your Name',
     projectKey: 'PROJ',
     baseUrl: 'https://yoursite.atlassian.net',
+    cloudId: 'your-cloud-id-here',
     storyPointsField: 'customfield_10026'
   }
 };

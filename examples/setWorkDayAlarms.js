@@ -8,6 +8,10 @@ const ADB_PATH = `${process.env.HOME}/Library/Android/sdk/platform-tools/adb`;
 // Parse command line arguments
 const args = process.argv.slice(2);
 const NO_ALARM = args.includes('-na') || args.includes('--no-alarm');
+// Optional day offset from today (e.g. `1` = tomorrow, `2` = day after).
+// When provided, it overrides the default today/after-5pm behavior.
+const dayOffsetArg = args.find(a => /^-?\d+$/.test(a));
+const DAY_OFFSET = dayOffsetArg !== undefined ? parseInt(dayOffsetArg, 10) : null;
 
 function isAllDay(event) {
     const start = new Date(event.Start);
@@ -112,8 +116,10 @@ async function showTomorrowEvents(mcpManager) {
         const now = new Date();
         const targetDate = new Date();
 
-        // If after 5pm, use tomorrow's date, otherwise use today's date
-        if (now.getHours() >= 17) {
+        // An explicit day offset wins; otherwise after 5pm use tomorrow, else today.
+        if (DAY_OFFSET !== null) {
+            targetDate.setDate(targetDate.getDate() + DAY_OFFSET);
+        } else if (now.getHours() >= 17) {
             targetDate.setDate(targetDate.getDate() + 1);
         }
 
@@ -204,7 +210,14 @@ async function showTomorrowEvents(mcpManager) {
         });
 
         // Display which day we're showing
-        const dayLabel = now.getHours() >= 17 ? "TOMORROW" : "TODAY";
+        let dayLabel;
+        if (DAY_OFFSET !== null) {
+            dayLabel = DAY_OFFSET === 0 ? "TODAY"
+                : DAY_OFFSET === 1 ? "TOMORROW"
+                : `+${DAY_OFFSET} DAYS`;
+        } else {
+            dayLabel = now.getHours() >= 17 ? "TOMORROW" : "TODAY";
+        }
         const dayName = targetDate.toLocaleDateString('en-US', { weekday: 'short' });
         const monthDay = targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
