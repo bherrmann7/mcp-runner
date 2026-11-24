@@ -25,7 +25,7 @@ There is no build step, linter, or test framework configured.
 **Server configs** are defined in `config.js` (gitignored). Copy `config.example.js` to get started. The `servers` section maps server names to their stdio command/args/env.
 
 **Workflow scripts** live in `examples/` and import from `../index.js` and `../config.js`:
-- `setWorkDayAlarms.js` — fetches Google Calendar events and sets Android alarms via ADB. Supports `-na`/`--no-alarm` flag.
+- `setWorkDayAlarms.js` — the daily briefing: prints Google Calendar events, then work (bob@eqengineered.com) inbox subjects, then sets Android alarms via ADB. Supports `-na`/`--no-alarm` and `-ne`/`--no-email` flags.
 - `jira.js` — queries Jira sprint items via Atlassian MCP server. Uses `config.jira` for credentials/settings.
 - `list-inbox.js` — lists Gmail inbox subjects via the gmail MCP server.
 - `list-tools.js` — utility to discover tools available on an MCP server.
